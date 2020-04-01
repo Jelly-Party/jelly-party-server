@@ -1,0 +1,17 @@
+{
+  "name": "jelly-party-server",
+  "version": "1.0.0",
+  "description": "A simple server to handle Jelly-Party sessions",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server.js"
+  },
+  "author": "Sean Eulenberg",
+  "license": "ISC",
+  "dependencies": {
+    "uuidv4": "^6.0.6",
+    "winston": "^3.2.1",
+    "ws": "^7.2.3"
+  }
+}
