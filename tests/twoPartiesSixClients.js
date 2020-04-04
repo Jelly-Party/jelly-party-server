@@ -11,12 +11,12 @@ const ws6 = new WebSocket('wss://www.jelly-party.com:8080');
 const pid1 = uuid();
 const pid2 = uuid();
 
-const command1 = { instruction: "join", partyId: pid1, clientName: "mark" }
-const command2 = { instruction: "join", partyId: pid1, clientName: "aurel" }
-const command3 = { instruction: "join", partyId: pid1, clientName: "mx" }
-const command4 = { instruction: "join", partyId: pid2, clientName: "lis" }
-const command5 = { instruction: "join", partyId: pid2, clientName: "boo" }
-const command6 = { instruction: "join", partyId: pid2, clientName: "quark" }
+const command1 = { type: "join", partyId: pid1, clientName: "mark" }
+const command2 = { type: "join", partyId: pid1, clientName: "aurel" }
+const command3 = { type: "join", partyId: pid1, clientName: "mx" }
+const command4 = { type: "join", partyId: pid2, clientName: "lis" }
+const command5 = { type: "join", partyId: pid2, clientName: "boo" }
+const command6 = { type: "join", partyId: pid2, clientName: "quark" }
 
 ws1.on('open', function open() {
     ws1.send(JSON.stringify(command1));
@@ -60,11 +60,10 @@ ws5.on('message', function incoming(data) {
 
 ws6.on('open', function open() {
     ws6.send(JSON.stringify(command6));
-    var newcmd = { instruction: "forward", partyId: pid2, commandToForward: { hey: "hi", thisisatest: "ohreally?" } }
+    var newcmd = {"type": "forward", "partyId": pid2, "data": {"commandToForward": {"type": "videoUpdate", "data": {"variant": "playPause", "tick": 1000 }}}}
     ws6.send(JSON.stringify(newcmd));
 });
 
 ws6.on('message', function incoming(data) {
     console.log(`ws6 received the following message: ${data}`);
 });
-

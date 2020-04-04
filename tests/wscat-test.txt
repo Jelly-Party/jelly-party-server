@@ -1,0 +1,10 @@
+wscat -c wss://www.jelly-party.com:8080
+
+c8149997-5ffb-4e6f-8ba1-18cd11d2298e
+
+{"type": "join", "clientName": "wscat", "partyId": "c8149997-5ffb-4e6f-8ba1-18cd11d2298e"}
+
+{"type": "forward", "partyId": "c8149997-5ffb-4e6f-8ba1-18cd11d2298e", "data": {"commandToForward": {"type": "videoUpdate", "data": {"variant": "playPause", "tick": 1000 }}}}
+
+
+{"type": "forward", "partyId": "c8149997-5ffb-4e6f-8ba1-18cd11d2298e", "data": {"commandToForward": {"type": "videoUpdate", "data": {"variant": "seek", "tick": 1000 }}}}
