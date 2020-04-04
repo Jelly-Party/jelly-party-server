@@ -24,14 +24,14 @@ const logger = createLogger({
     // - Write all logs error (and below) to `error.log`.
     //
     new transports.Console(),
-    new transports.File({ filename: 'error.log', level: 'error' }),
-    new transports.File({ filename: 'combined.log', level: 'debug' })
+    new transports.File({ filename: '/var/log/serverlog/error.log', level: 'error' }),
+    new transports.File({ filename: '/var/log/serverlog/combined.log', level: 'debug' })
   ]
 });
 
 const server = https.createServer({
-  cert: fs.readFileSync('cert/fullchain.pem'),
-  key: fs.readFileSync('cert/privkey.pem')
+  cert: fs.readFileSync('/etc/letsencrypt/live/www.jelly-party.com/fullchain.pem'),
+  key: fs.readFileSync('/etc/letsencrypt/live/www.jelly-party.com/privkey.pem')
 });
 const wss = new WebSocket.Server({ server });
 
@@ -93,9 +93,9 @@ wss.on('connection', function connection(ws) {
   ws.isAlive = true;
   ws.on('pong', heartbeat);
   ws.interval = setInterval(function ping() {
-      if (ws.isAlive === false) return ws.close();
-      ws.isAlive = false;
-      ws.ping(noop);
+    if (ws.isAlive === false) return ws.close();
+    ws.isAlive = false;
+    ws.ping(noop);
   }, 30000);
   ws.on('message', function incoming(message) {
     try {

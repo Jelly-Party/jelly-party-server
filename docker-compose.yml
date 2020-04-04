@@ -1,0 +1,17 @@
+version: "3.7"
+services:
+  server:
+    build: .
+    container_name: jelly-party-server
+    ports:
+      - "8080:8080" # nodejs websocket server
+    volumes:
+      - type: bind # certificate renewal doesn't require rebuilding the image
+        source: /etc/letsencrypt
+        target: /etc/letsencrypt
+      - type: volume
+        source: log_volume
+        target: /var/log/serverlog
+    restart: unless-stopped
+volumes:
+  log_volume:
