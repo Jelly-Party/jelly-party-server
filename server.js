@@ -30,8 +30,8 @@ const logger = createLogger({
 });
 
 const server = https.createServer({
-  cert: fs.readFileSync('/etc/letsencrypt/live/www.jelly-party.com/fullchain.pem'),
-  key: fs.readFileSync('/etc/letsencrypt/live/www.jelly-party.com/privkey.pem')
+  cert: fs.readFileSync('/etc/letsencrypt/live/ws.jelly-party.com/fullchain.pem'),
+  key: fs.readFileSync('/etc/letsencrypt/live/ws.jelly-party.com/privkey.pem')
 });
 const wss = new WebSocket.Server({ server });
 

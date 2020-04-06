@@ -1,12 +1,12 @@
 const WebSocket = require('ws');
 const { uuid } = require('uuidv4');
 
-const ws1 = new WebSocket('wss://www.jelly-party.com:8080');
-const ws2 = new WebSocket('wss://www.jelly-party.com:8080');
-const ws3 = new WebSocket('wss://www.jelly-party.com:8080');
-const ws4 = new WebSocket('wss://www.jelly-party.com:8080');
-const ws5 = new WebSocket('wss://www.jelly-party.com:8080');
-const ws6 = new WebSocket('wss://www.jelly-party.com:8080');
+const ws1 = new WebSocket('wss://ws.jelly-party.com:8080');
+const ws2 = new WebSocket('wss://ws.jelly-party.com:8080');
+const ws3 = new WebSocket('wss://ws.jelly-party.com:8080');
+const ws4 = new WebSocket('wss://ws.jelly-party.com:8080');
+const ws5 = new WebSocket('wss://ws.jelly-party.com:8080');
+const ws6 = new WebSocket('wss://ws.jelly-party.com:8080');
 
 const pid1 = uuid();
 const pid2 = uuid();
