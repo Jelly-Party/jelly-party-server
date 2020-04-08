@@ -53,8 +53,8 @@ class Party {
       relevantConnection.send(JSON.stringify(msg));
     }
   }
-  addClient(newClient) {
-    this.connections.push(newClient);
+  addClient(newClientWebocket) {
+    this.connections.push(newClientWebocket);
     this.broadcastPartyState();
   }
   removeClient(clientId) {
@@ -68,7 +68,7 @@ class Party {
     this.broadcastPartyState();
   }
   broadcastPartyState() {
-    var partyState = { isActive: true, partyId: this.partyId, peers: (this.connections.map(c => c.clientName)) };
+    var partyState = { isActive: true, partyId: this.partyId, peers: (this.connections.map(c => { return { clientName: c.clientName, currentlyWatching: c.currentlyWatching } })) };
     var partyStateUpdate = { type: "partyStateUpdate", data: { partyState: partyState } };
     this.notifyClients(undefined, partyStateUpdate); // notify everybody about new party state.
   }
@@ -106,6 +106,7 @@ wss.on('connection', function connection(ws) {
       switch (type) {
         case "join":
           ws.clientName = message.clientName;
+          ws.currentlyWatching = message.currentlyWatching;
           logger.debug(`Client ${ws.clientName} wants to join a party..`);
           if (partyId in parties) {
             // This party exists. Let's join it
