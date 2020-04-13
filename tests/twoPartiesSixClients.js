@@ -1,5 +1,4 @@
 const WebSocket = require('ws');
-const { uuid } = require('uuidv4');
 
 const ws1 = new WebSocket('wss://ws.jelly-party.com:8080');
 const ws2 = new WebSocket('wss://ws.jelly-party.com:8080');
@@ -8,15 +7,15 @@ const ws4 = new WebSocket('wss://ws.jelly-party.com:8080');
 const ws5 = new WebSocket('wss://ws.jelly-party.com:8080');
 const ws6 = new WebSocket('wss://ws.jelly-party.com:8080');
 
-const pid1 = uuid();
-const pid2 = uuid();
+const pid1 = "sole-lords-attract-through";
+const pid2 = "mental-cheers-exercise-nearby";
 
-const command1 = { type: "join", partyId: pid1, clientName: "mark" }
-const command2 = { type: "join", partyId: pid1, clientName: "aurel" }
-const command3 = { type: "join", partyId: pid1, clientName: "mx" }
-const command4 = { type: "join", partyId: pid2, clientName: "lis" }
-const command5 = { type: "join", partyId: pid2, clientName: "boo" }
-const command6 = { type: "join", partyId: pid2, clientName: "quark" }
+const command1 = { type: "join", partyId: pid1, clientName: "mark", currentlyWatching: "testdomain.com"}
+const command2 = { type: "join", partyId: pid1, clientName: "aurel", currentlyWatching: "testdomain.com"}
+const command3 = { type: "join", partyId: pid1, clientName: "mx", currentlyWatching: "testdomain.com"}
+const command4 = { type: "join", partyId: pid2, clientName: "lis", currentlyWatching: "testdomain.com"}
+const command5 = { type: "join", partyId: pid2, clientName: "boo", currentlyWatching: "testdomain.com"}
+const command6 = { type: "join", partyId: pid2, clientName: "quark", currentlyWatching: "testdomain.com"}
 
 ws1.on('open', function open() {
     ws1.send(JSON.stringify(command1));
@@ -60,7 +59,7 @@ ws5.on('message', function incoming(data) {
 
 ws6.on('open', function open() {
     ws6.send(JSON.stringify(command6));
-    var newcmd = {"type": "forward", "partyId": pid2, "data": {"commandToForward": {"type": "videoUpdate", "data": {"variant": "playPause", "tick": 1000 }}}}
+    var newcmd = {"type": "forward", "partyId": pid2, "data": {"commandToForward": {"type": "videoUpdate", "data": {"variant": "play", "tick": 1000 }}}}
     ws6.send(JSON.stringify(newcmd));
 });
 
