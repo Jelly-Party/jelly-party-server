@@ -1,0 +1,5 @@
+version: "3.7"
+services:
+  server:
+    environment:
+      - NODE_ENV=production
