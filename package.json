@@ -5,11 +5,13 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js"
+    "start": "NODE_ENV=production node server.js",
+    "dev": "NODE_ENV=development node server.js"
   },
   "author": "Sean Eulenberg",
   "license": "ISC",
   "dependencies": {
+    "uuidv4": "^6.0.7",
     "winston": "^3.2.1",
     "ws": "^7.2.3"
   }
