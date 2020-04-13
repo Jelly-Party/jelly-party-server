@@ -53,8 +53,8 @@ class Party {
       relevantConnection.send(JSON.stringify(msg));
     }
   }
-  addClient(newClientWebocket) {
-    this.connections.push(newClientWebocket);
+  addClient(newClientWebsocket) {
+    this.connections.push(newClientWebsocket);
     this.broadcastPartyState();
   }
   removeClient(clientId) {
@@ -68,7 +68,7 @@ class Party {
     this.broadcastPartyState();
   }
   broadcastPartyState() {
-    var partyState = { isActive: true, partyId: this.partyId, peers: (this.connections.map(c => { return { clientName: c.clientName, currentlyWatching: c.currentlyWatching } })) };
+    var partyState = { isActive: true, partyId: this.partyId, peers: (this.connections.map(c => { return { uuid: c.id, clientName: c.clientName, currentlyWatching: c.currentlyWatching } })) };
     var partyStateUpdate = { type: "partyStateUpdate", data: { partyState: partyState } };
     this.notifyClients(undefined, partyStateUpdate); // notify everybody about new party state.
   }
