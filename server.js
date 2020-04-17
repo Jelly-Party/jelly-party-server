@@ -1,7 +1,7 @@
 const fs = require("fs");
 const https = require("https");
 const WebSocket = require("ws");
-const { uuid } = require('uuidv4');
+const { uuid } = require("uuidv4");
 const { createLogger, format, transports } = require("winston");
 const { combine, timestamp, label, printf } = format;
 
@@ -9,7 +9,6 @@ const myFormat = printf(({ level, message, label, timestamp }) => {
   return `${timestamp} [${label}] ${level}: ${message}`;
 });
 const loggingLevel = process.env.NODE_ENV === "production" ? "info" : "debug";
-console.log(`Started server in ${process.env.NODE_ENV} mode. Logging level is at ${loggingLevel}.`)
 const logger = createLogger({
   level: loggingLevel,
   format: combine(
@@ -36,11 +35,28 @@ const logger = createLogger({
   ],
 });
 
+var certPath, keyPath;
+const port = 8080;
+logger.info(
+  `Starting server in ${process.env.NODE_ENV} mode. Logging level is at ${loggingLevel}.`
+);
+
+switch (process.env.NODE_ENV) {
+  case "production":
+    certPath = "/etc/letsencrypt/live/ws.jelly-party.com/fullchain.pem";
+    keyPath = "/etc/letsencrypt/live/ws.jelly-party.com/privkey.pem";
+    break;
+  case "development":
+    certPath = "/etc/letsencrypt/live/staging.jelly-party.com/fullchain1.pem";
+    keyPath = "/etc/letsencrypt/live/staging.jelly-party.com/privkey1.pem";
+    break;
+}
+
+logger.info(`Using config for ${certPath.match(/\/.+jelly-party.com/)[0]}.`);
+
 const server = https.createServer({
-  cert: fs.readFileSync(
-    "/etc/letsencrypt/live/ws.jelly-party.com/fullchain.pem"
-  ),
-  key: fs.readFileSync("/etc/letsencrypt/live/ws.jelly-party.com/privkey.pem"),
+  cert: fs.readFileSync(certPath),
+  key: fs.readFileSync(keyPath),
 });
 const wss = new WebSocket.Server({ server });
 
@@ -205,4 +221,5 @@ wss.on("connection", function connection(ws) {
   });
 });
 
-server.listen(8080);
+server.listen(port);
+logger.info(`Server listening at port ${port}.`);
