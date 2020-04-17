@@ -62,8 +62,6 @@ const wss = new WebSocket.Server({ server });
 
 // Define a dictionary that will hold all parties with references to clients
 var parties = {};
-// Define a dictionary that will hold all clients with reference to party
-var clients = {};
 
 class Party {
   constructor(partyId) {
@@ -75,10 +73,10 @@ class Party {
       `Notifying other clients about command: ${JSON.stringify(msg)}`
     );
     var relevantConnections = this.connections.filter((conn) => {
-      return conn.id !== myId;
+      return conn.uuid !== myId;
     });
     for (const relevantConnection of relevantConnections) {
-      logger.debug(`Notiying ${relevantConnection.id}.`);
+      logger.debug(`Notiying ${relevantConnection.uuid}.`);
       relevantConnection.send(JSON.stringify(msg));
     }
   }
@@ -89,16 +87,18 @@ class Party {
   removeClient(clientId) {
     logger.debug(`Removing client with Id ${clientId}.`);
     this.connections = this.connections.filter((conn) => {
-      return conn.id !== clientId;
+      return conn.uuid !== clientId;
     });
     logger.debug(
-      `Clients left in party: ${this.connections.map((conn) => conn.id)}`
+      `Clients left in party: ${this.connections.map((conn) => conn.uuid)}`
     );
     if (!this.connections.length) {
       // This party is now empty. Let's remove it.
       this.removeParty();
+    } else {
+      // Otherwise let's broadcast the next party state
+      this.broadcastPartyState();
     }
-    this.broadcastPartyState();
   }
   broadcastPartyState() {
     var partyState = {
@@ -106,7 +106,7 @@ class Party {
       partyId: this.partyId,
       peers: this.connections.map((c) => {
         return {
-          uuid: c.id,
+          uuid: c.uuid,
           clientName: c.clientName,
           currentlyWatching: c.currentlyWatching,
         };
@@ -116,7 +116,8 @@ class Party {
       type: "partyStateUpdate",
       data: { partyState: partyState },
     };
-    this.notifyClients(undefined, partyStateUpdate); // notify everybody about new party state.
+    // Notify everybody about new party state.
+    this.notifyClients(/* undefined=everybody */ undefined, partyStateUpdate);
   }
   removeParty() {
     // remove reference to this party so that it can be garbage collected
@@ -134,8 +135,8 @@ function heartbeat() {
 wss.on("connection", function connection(ws) {
   // Let's generate a unique id for every connection
   logger.debug("Received new connection.");
-  ws.id = uuid();
-  logger.info(`${ws.id} connected.`);
+  ws.uuid = uuid();
+  logger.info(`${ws.uuid} connected.`);
   ws.isAlive = true;
   ws.on("pong", heartbeat);
   ws.interval = setInterval(function ping() {
@@ -148,21 +149,23 @@ wss.on("connection", function connection(ws) {
       logger.debug(`Received: ${JSON.stringify(message)}`);
       var message = JSON.parse(message);
       var type = message.type;
-      var partyId = message.partyId;
       switch (type) {
         case "join":
-          ws.clientName = message.clientName;
-          ws.currentlyWatching = message.currentlyWatching;
-          logger.debug(`Client ${ws.clientName} wants to join a party..`);
-          if (partyId in parties) {
+          ws.partyId = message.data.partyId;
+          ws.clientName = message.data.clientState.clientName;
+          ws.currentlyWatching = message.data.clientState.currentlyWatching;
+          logger.debug(
+            `Client ${ws.clientName} wants to join a party. GUID is ${message.data.guid}.`
+          );
+          if (ws.partyId in parties) {
             // This party exists. Let's join it
             logger.debug("Party already exists, so client can join..");
-            var existingParty = parties[partyId];
+            var existingParty = parties[ws.partyId];
             existingParty.addClient(ws);
-            clients[ws.id] = existingParty;
+            ws.party = existingParty;
             logger.debug(
               `Client added to party. Clients in party: ${existingParty.connections.map(
-                (c) => c.id
+                (c) => c.clientName
               )}.`
             );
           } else {
@@ -170,21 +173,33 @@ wss.on("connection", function connection(ws) {
             logger.debug(
               "Party doesn't yet exist, so it'll need to be created.."
             );
-            var newParty = new Party(partyId);
+            var newParty = new Party(ws.partyId);
             newParty.addClient(ws);
-            parties[partyId] = newParty;
-            clients[ws.id] = newParty;
+            parties[ws.partyId] = newParty;
+            ws.party = newParty;
             logger.debug(
               `Party added. Clients in party: ${newParty.connections.map(
-                (c) => c.id
+                (c) => c.clientName
               )}.`
             );
           }
           break;
         case "forward":
           // We're asked to forward a command to all ppl in a party
-          var party = parties[partyId];
-          party.notifyClients(ws.id, message.data.commandToForward);
+          var party = ws.party;
+          var commandToForward = message.data.commandToForward;
+          // We must add the client who issued the command
+          commandToForward.peer = {
+            uuid: ws.uuid,
+            clientName: ws.clientName,
+            currentlyWatching: ws.currentlyWatching,
+          };
+          party.notifyClients(ws.uuid, commandToForward);
+          break;
+        case "clientUpdate":
+          // A client wants to update its state
+          ws.currentlyWatching = message.data.newClientState.currentlyWatching;
+          ws.party.broadcastPartyState();
           break;
         default:
           logger.warn(`Should not be receiving this message: ${message}.`);
@@ -194,27 +209,23 @@ wss.on("connection", function connection(ws) {
     }
   });
   ws.on("close", function close() {
-    logger.info(`${ws.id} disconnected.`);
+    logger.info(`${ws.uuid} disconnected.`);
     logger.debug(
-      `Client ${ws.id} disconnected. Checking if party needs to be removed.`
+      `Client ${ws.uuid} disconnected. Checking if party needs to be removed.`
     );
     clearInterval(ws.interval);
-    party = clients[ws.id]; // is client in a party?
+    const party = ws.party; // is client in a party?
     if (party) {
       // client is in a party
       logger.debug(
-        `Client ${ws.id} is in a party. Removing client from party.`
+        `Client ${ws.uuid} is in a party. Removing client from party.`
       );
-      party.removeClient(ws.id);
-      delete clients[ws.id];
+      party.removeClient(ws.uuid);
     } else {
       logger.debug(
-        `Apparently client ${ws.id} is not inside a party, so I doesn't need to be removed..`
+        `Apparently client ${ws.clientName} is not inside a party, so the client doesn't need to be removed..`
       );
     }
-    logger.debug(
-      `clients keys is now: ${JSON.stringify(Object.keys(clients))}`
-    );
     logger.debug(
       `parties keys is now: ${JSON.stringify(Object.keys(parties))}`
     );
