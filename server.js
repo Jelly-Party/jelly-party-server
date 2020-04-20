@@ -109,6 +109,7 @@ class Party {
           uuid: c.uuid,
           clientName: c.clientName,
           currentlyWatching: c.currentlyWatching,
+          favicon: c.favicon
         };
       }),
     };
@@ -154,6 +155,7 @@ wss.on("connection", function connection(ws) {
           ws.partyId = message.data.partyId;
           ws.clientName = message.data.clientState.clientName;
           ws.currentlyWatching = message.data.clientState.currentlyWatching;
+          ws.favicon = message.data.clientState.favicon;
           logger.debug(
             `Client ${ws.clientName} wants to join a party. GUID is ${message.data.guid}.`
           );
@@ -199,6 +201,7 @@ wss.on("connection", function connection(ws) {
         case "clientUpdate":
           // A client wants to update its state
           ws.currentlyWatching = message.data.newClientState.currentlyWatching;
+          ws.favicon = message.data.newClientState.favicon;
           ws.party.broadcastPartyState();
           break;
         default:
