@@ -67,6 +67,13 @@ class Party {
   constructor(partyId) {
     this.partyId = partyId;
     this.connections = [];
+    this.update = false;
+    setInterval(() => {
+      if (this.update) {
+        this.broadcastPartyState();
+        this.update = false;
+      }
+    }, 5000);
   }
   notifyClients(myId, msg) {
     logger.debug(
@@ -109,7 +116,8 @@ class Party {
           uuid: c.uuid,
           clientName: c.clientName,
           currentlyWatching: c.currentlyWatching,
-          favicon: c.favicon
+          favicon: c.favicon,
+          videoState: c.videoState,
         };
       }),
     };
@@ -119,6 +127,13 @@ class Party {
     };
     // Notify everybody about new party state.
     this.notifyClients(/* undefined=everybody */ undefined, partyStateUpdate);
+  }
+
+  schedulePartyStateUpdate() {
+    // Only send out party state updates a maximum of once every x ms
+    // We do this  to gather party state updates in a bucket, instead of
+    // sending them out immediately.
+    this.update = true;
   }
   removeParty() {
     // remove reference to this party so that it can be garbage collected
@@ -156,6 +171,9 @@ wss.on("connection", function connection(ws) {
           ws.clientName = message.data.clientState.clientName;
           ws.currentlyWatching = message.data.clientState.currentlyWatching;
           ws.favicon = message.data.clientState.favicon;
+          ws.videoState = message.data.clientState.videoState;
+          // Let the client know about his UUID
+          ws.send(JSON.stringify({ type: "setUUID", data: { uuid: ws.uuid } }));
           logger.debug(
             `Client ${ws.clientName} wants to join a party. GUID is ${message.data.guid}.`
           );
@@ -202,7 +220,8 @@ wss.on("connection", function connection(ws) {
           // A client wants to update its state
           ws.currentlyWatching = message.data.newClientState.currentlyWatching;
           ws.favicon = message.data.newClientState.favicon;
-          ws.party.broadcastPartyState();
+          ws.videoState = message.data.newClientState.videoState;
+          ws.party.schedulePartyStateUpdate();
           break;
         default:
           logger.warn(`Should not be receiving this message: ${message}.`);
