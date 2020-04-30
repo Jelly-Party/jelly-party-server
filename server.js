@@ -211,8 +211,6 @@ wss.on("connection", function connection(ws) {
           // We must add the client who issued the command
           commandToForward.peer = {
             uuid: ws.uuid,
-            clientName: ws.clientName,
-            currentlyWatching: ws.currentlyWatching,
           };
           party.notifyClients(ws.uuid, commandToForward);
           break;
