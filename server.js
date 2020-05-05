@@ -83,7 +83,7 @@ class Party {
       return conn.uuid !== myId;
     });
     for (const relevantConnection of relevantConnections) {
-      logger.debug(`Notiying ${relevantConnection.uuid}.`);
+      logger.debug(`Notifying ${relevantConnection.uuid}.`);
       relevantConnection.send(JSON.stringify(msg));
     }
   }
@@ -112,13 +112,7 @@ class Party {
       isActive: true,
       partyId: this.partyId,
       peers: this.connections.map((c) => {
-        return {
-          uuid: c.uuid,
-          clientName: c.clientName,
-          currentlyWatching: c.currentlyWatching,
-          favicon: c.favicon,
-          videoState: c.videoState,
-        };
+        return { ...c.clientState, ...{ uuid: c.uuid } };
       }),
     };
     var partyStateUpdate = {
@@ -168,14 +162,11 @@ wss.on("connection", function connection(ws) {
       switch (type) {
         case "join":
           ws.partyId = message.data.partyId;
-          ws.clientName = message.data.clientState.clientName;
-          ws.currentlyWatching = message.data.clientState.currentlyWatching;
-          ws.favicon = message.data.clientState.favicon;
-          ws.videoState = message.data.clientState.videoState;
+          ws.clientState = message.data.clientState;
           // Let the client know about his UUID
           ws.send(JSON.stringify({ type: "setUUID", data: { uuid: ws.uuid } }));
           logger.debug(
-            `Client ${ws.clientName} wants to join a party. GUID is ${message.data.guid}.`
+            `Client ${ws.clientState.clientName} wants to join a party. GUID is ${message.data.guid}.`
           );
           if (ws.partyId in parties) {
             // This party exists. Let's join it
@@ -216,9 +207,14 @@ wss.on("connection", function connection(ws) {
           break;
         case "clientUpdate":
           // A client wants to update its state
-          ws.currentlyWatching = message.data.newClientState.currentlyWatching;
-          ws.favicon = message.data.newClientState.favicon;
-          ws.videoState = message.data.newClientState.videoState;
+          // We must ensure that clientName and uuid stay
+          // immutable
+          delete message.data.newClientState["clientName"]
+          delete message.data.newClientState["uuid"]
+          ws.clientState = {
+            ...ws.clientState,
+            ...message.data.newClientState,
+          };
           ws.party.schedulePartyStateUpdate();
           break;
         default:
@@ -243,7 +239,7 @@ wss.on("connection", function connection(ws) {
       party.removeClient(ws.uuid);
     } else {
       logger.debug(
-        `Apparently client ${ws.clientName} is not inside a party, so the client doesn't need to be removed..`
+        `Apparently client ${ws.clientState.clientName} is not inside a party, so the client doesn't need to be removed..`
       );
     }
     logger.debug(
