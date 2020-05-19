@@ -1,0 +1,82 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - /log_volume/elastic.json
+    json.keys_under_root: true
+    processors:
+      - decode_json_fields:
+          fields: ["message"]
+          process_array: true
+          max_depth: 10
+          target: "message_decoded"
+          add_error_key: true
+      - timestamp:
+          field: timestamp
+          layouts:
+            - "2006-01-02T15:04:05Z"
+            - "2006-01-02T15:04:05.999Z"
+          test:
+            - "2019-06-22T16:33:51Z"
+            - "2019-11-18T04:59:51.123Z"
+      - dissect:
+          when:
+            has_fields: ["message_decoded.data.clientIp"]
+          tokenizer: "::ffff:%{ip}"
+          field: "message_decoded.data.clientIp"
+          target_prefix: "client"
+      - drop_fields:
+          fields: [timestamp]
+output.elasticsearch:
+  hosts: ${elasticsearch_host}
+  username: ${filebeat_username}
+  password: ${filebeat_password}
+  pipeline: geoip-info
+setup.template.append_fields:
+  - name: label
+    type: keyword
+  - name: level
+    type: keyword
+  - name: client.geo
+    type: geo_point
+  - name: message_decoded.data.clientIp
+    type: ip
+  - name: message_decoded.data.clientState.clientName
+    type: text
+  - name: message_decoded.data.clientState.currentlyWatching
+    type: text
+  - name: message_decoded.data.clientState.favicon
+    type: keyword
+  - name: message_decoded.data.clientState.videoState.currentTime
+    type: integer
+  - name: message_decoded.data.clientState.videoState.paused
+    type: boolean
+  - name: message_decoded.data.guid
+    type: keyword
+  - name: message_decoded.data.partyId
+    type: keyword
+  - name: message_decoded.data.uuid
+    type: keyword
+  - name: message_decoded.type
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.accessoriesType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.clotheColor
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.clotheType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.eyeType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.eyebrowType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.facialHairColor
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.facialHairType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.graphicType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.mouthType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.skinColor
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.topType
+    type: keyword

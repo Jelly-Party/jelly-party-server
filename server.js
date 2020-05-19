@@ -3,43 +3,48 @@ const https = require("https");
 const WebSocket = require("ws");
 const { uuid } = require("uuidv4");
 const { createLogger, format, transports } = require("winston");
-const { combine, timestamp, label, printf } = format;
+const { combine, timestamp, label, json } = format;
 
-const myFormat = printf(({ level, message, label, timestamp }) => {
-  return `${timestamp} [${label}] ${level}: ${message}`;
-});
-const loggingLevel = process.env.NODE_ENV === "production" ? "info" : "debug";
+// Default winston logging levels
+// {
+//   error: 0,
+//   warn: 1,
+//   info: 2,
+//   verbose: 3,
+//   debug: 4,
+//   silly: 5
+// }
+
 const logger = createLogger({
-  level: loggingLevel,
-  format: combine(
-    // format.colorize(),
-    label({ label: "Jelly-Party-Server" }),
-    timestamp(),
-    myFormat
-  ),
-  defaultMeta: { service: "user-service" },
+  level: "info",
+  format: combine(label({ label: "ws.jelly-party.com" }), timestamp(), json()),
   transports: [
-    //
-    // - Write to all logs with level `info` and below to `combined.log`
-    // - Write all logs error (and below) to `error.log`.
-    //
-    new transports.Console(),
     new transports.File({
+      // maximum level logged is error
       filename: "/var/log/serverlog/error.log",
       level: "error",
     }),
     new transports.File({
-      filename: "/var/log/serverlog/combined.log",
-      level: "debug",
+      // maximum level logged is info
+      filename: "/var/log/serverlog/elastic.json",
+      level: "info",
     }),
   ],
 });
 
+if (process.env.NODE_ENV === "debug") {
+  logger.verbose("Debug log enabled");
+  logger.add(
+    new transports.File({
+      filename: "/var/log/serverlog/debug.log",
+      level: "debug",
+    })
+  );
+}
+
 var certPath, keyPath;
 const port = 8080;
-logger.info(
-  `Starting server in ${process.env.NODE_ENV} mode. Logging level is at ${loggingLevel}.`
-);
+logger.verbose(`Starting server in ${process.env.NODE_ENV} mode.`);
 
 switch (process.env.NODE_ENV) {
   case "production":
@@ -52,7 +57,7 @@ switch (process.env.NODE_ENV) {
     break;
 }
 
-logger.info(`Using config for ${certPath.match(/\/.+jelly-party.com/)[0]}.`);
+logger.verbose(`Using config for ${certPath.match(/\/.+jelly-party.com/)[0]}.`);
 
 const server = https.createServer({
   cert: fs.readFileSync(certPath),
@@ -74,6 +79,11 @@ class Party {
         this.update = false;
       }
     }, 5000);
+    let elasticLog = JSON.stringify({
+      type: "partyCreated",
+      data: { partyId: this.partyId },
+    });
+    logger.info(elasticLog);
   }
   notifyClients(myId, msg) {
     logger.debug(
@@ -131,7 +141,12 @@ class Party {
   }
   removeParty() {
     // remove reference to this party so that it can be garbage collected
-    logger.debug(`Party empty. Removing party with Id ${this.partyId}.`);
+    let elasticLog = JSON.stringify({
+      type: "partyRemoved",
+      data: { partyId: this.partyId },
+    });
+    logger.info(elasticLog);
+    logger.verbose(`Removing party: ${this.partyId}`);
     delete parties[this.partyId];
   }
 }
@@ -142,11 +157,11 @@ function heartbeat() {
   this.isAlive = true;
 }
 
-wss.on("connection", function connection(ws) {
+wss.on("connection", function connection(ws, req) {
   // Let's generate a unique id for every connection
-  logger.debug("Received new connection.");
+  logger.debug("New connection opened.");
   ws.uuid = uuid();
-  logger.info(`${ws.uuid} connected.`);
+  logger.debug(`UUID set: ${ws.uuid}.`);
   ws.isAlive = true;
   ws.on("pong", heartbeat);
   ws.interval = setInterval(function ping() {
@@ -168,6 +183,14 @@ wss.on("connection", function connection(ws) {
           logger.debug(
             `Client ${ws.clientState.clientName} wants to join a party. GUID is ${message.data.guid}.`
           );
+          // Let's log the join command and include the IP address
+          // The IP address will be anonymized by LogStash and is
+          // deleted as soon as the data is stored in elasticsearch
+          let elasticLog = { ...message };
+          elasticLog.data.clientIp = req.socket.remoteAddress;
+          elasticLog.data.uuid = ws.uuid;
+          elasticLog = JSON.stringify(elasticLog);
+          logger.info(elasticLog);
           if (ws.partyId in parties) {
             // This party exists. Let's join it
             logger.debug("Party already exists, so client can join..");
@@ -209,8 +232,8 @@ wss.on("connection", function connection(ws) {
           // A client wants to update its state
           // We must ensure that clientName and uuid stay
           // immutable
-          delete message.data.newClientState["clientName"]
-          delete message.data.newClientState["uuid"]
+          delete message.data.newClientState["clientName"];
+          delete message.data.newClientState["uuid"];
           ws.clientState = {
             ...ws.clientState,
             ...message.data.newClientState,
@@ -225,7 +248,11 @@ wss.on("connection", function connection(ws) {
     }
   });
   ws.on("close", function close() {
-    logger.info(`${ws.uuid} disconnected.`);
+    let elasticLog = JSON.stringify({
+      type: "disconnect",
+      data: { uuid: ws.uuid },
+    });
+    logger.info(elasticLog);
     logger.debug(
       `Client ${ws.uuid} disconnected. Checking if party needs to be removed.`
     );

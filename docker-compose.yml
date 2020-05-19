@@ -15,5 +15,17 @@ services:
         source: log_volume
         target: /var/log/serverlog
     restart: unless-stopped
+    network_mode: "host"
+  filebeat:
+    build: ./filebeat
+    container_name: filebeat
+    env_file:
+      - filebeat.env
+    volumes:
+      - type: volume
+        source: log_volume
+        target: /log_volume
+    depends_on:
+      - server
 volumes:
   log_volume:
