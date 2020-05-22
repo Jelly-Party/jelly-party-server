@@ -1,5 +1,6 @@
 filebeat.inputs:
   - type: log
+    tags: ["json"]
     paths:
       - /log_volume/elastic.json
     json.keys_under_root: true
@@ -26,12 +27,28 @@ filebeat.inputs:
           target_prefix: "client"
       - drop_fields:
           fields: [timestamp]
+  - type: httpjson
+    tags: ["json"]
+    url: http://localhost:8081/stats
+    http_method: GET
+    interval: 60s
+    processors:
+      - decode_json_fields:
+          fields: ["message"]
+          max_depth: 1
+          target: ""
+          add_error_key: true
 output.elasticsearch:
   hosts: ${elasticsearch_host}
   username: ${filebeat_username}
   password: ${filebeat_password}
   pipeline: geoip-info
+setup.template.overwrite: false
 setup.template.append_fields:
+  - name: activeParties
+    type: integer
+  - name: activeClients
+    type: integer
   - name: label
     type: keyword
   - name: level
@@ -79,4 +96,6 @@ setup.template.append_fields:
   - name: message_decoded.data.clientState.avatarState.skinColor
     type: keyword
   - name: message_decoded.data.clientState.avatarState.topType
+    type: keyword
+  - name: message_decoded.data.clientState.avatarState.hairColor
     type: keyword

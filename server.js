@@ -4,6 +4,7 @@ const WebSocket = require("ws");
 const { uuid } = require("uuidv4");
 const { createLogger, format, transports } = require("winston");
 const { combine, timestamp, label, json } = format;
+const express = require("express");
 
 // Default winston logging levels
 // {
@@ -67,6 +68,68 @@ const wss = new WebSocket.Server({ server });
 
 // Define a dictionary that will hold all parties with references to clients
 var parties = {};
+
+// Launch the localhost API that filebeat uses to display live stats.
+// This server is not exposed publically and only accessible from
+// localhost
+const api = express();
+api.use(express.json());
+api.use(express.urlencoded({ extended: true }));
+const apiPort = 8081;
+api.get("/parties/:id", (req, res) => {
+  let ans = parties[req.params.id];
+  res.json(ans);
+});
+api.get("/stats", (req, res) => {
+  let activeParties = 0;
+  let activeClients = 0;
+  for (let [key, party] of Object.entries(parties)) {
+    activeParties += 1;
+    activeClients += party.connections.length;
+  }
+  let ans = {
+    activeParties: activeParties,
+    activeClients: activeClients,
+  };
+  res.json(ans);
+});
+api.post("/parties/:id/chat", (req, res) => {
+  let party = parties[req.params.id];
+  let chatMessage = {
+    type: "chatMessage",
+    peer: { uuid: "jellyPartySupportBot" },
+    data: {
+      type: "system",
+      data: { text: req.body.msg, timestamp: Date.now() },
+    },
+  };
+  if (!party) {
+    res.json({
+      status: "error",
+      msg: `The requested party does not exist.`,
+    });
+  } else {
+    party.notifyClients(undefined, chatMessage);
+    res.json({ status: "success" });
+  }
+});
+api.post("/broadcast/chat", (req, res) => {
+  let chatMessage = {
+    type: "chatMessage",
+    peer: { uuid: "jellyPartySupportBot" },
+    data: {
+      type: "system",
+      data: { text: req.body.msg, timestamp: Date.now() },
+    },
+  };
+  for (let [key, party] of Object.entries(parties)) {
+    party.notifyClients(undefined, chatMessage);
+  }
+  res.json({ status: "success", body: req.body });
+});
+api.listen(apiPort, "localhost", () =>
+  console.log(`API listening at http://localhost:${apiPort}`)
+);
 
 class Party {
   constructor(partyId) {
@@ -183,9 +246,10 @@ wss.on("connection", function connection(ws, req) {
           logger.debug(
             `Client ${ws.clientState.clientName} wants to join a party. GUID is ${message.data.guid}.`
           );
-          // Let's log the join command and include the IP address
-          // The IP address will be anonymized by LogStash and is
-          // deleted as soon as the data is stored in elasticsearch
+          // Let's log the join command and include the client's IP address.
+          // The IP address must be anonymized by ElasticSearch and is
+          // to be stored only as a rough geo_point, to analyze where traffic
+          // originates from. Log files must be flushed on a regular basis.
           let elasticLog = { ...message };
           elasticLog.data.clientIp = req.socket.remoteAddress;
           elasticLog.data.uuid = ws.uuid;

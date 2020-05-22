@@ -27,6 +27,7 @@ services:
         target: /log_volume
     depends_on:
       - server
+    network_mode: "host"
   metricbeat:
     build: ./metricbeat
     container_name: metricbeat
