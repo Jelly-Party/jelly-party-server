@@ -53,8 +53,6 @@ setup.template.append_fields:
     type: keyword
   - name: level
     type: keyword
-  - name: client.geo
-    type: geo_point
   - name: message_decoded.data.clientIp
     type: ip
   - name: message_decoded.data.clientState.clientName
