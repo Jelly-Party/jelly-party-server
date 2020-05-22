@@ -312,30 +312,34 @@ wss.on("connection", function connection(ws, req) {
     }
   });
   ws.on("close", function close() {
-    let elasticLog = JSON.stringify({
-      type: "disconnect",
-      data: { uuid: ws.uuid },
-    });
-    logger.info(elasticLog);
-    logger.debug(
-      `Client ${ws.uuid} disconnected. Checking if party needs to be removed.`
-    );
-    clearInterval(ws.interval);
-    const party = ws.party; // is client in a party?
-    if (party) {
-      // client is in a party
+    try {
+      let elasticLog = JSON.stringify({
+        type: "disconnect",
+        data: { uuid: ws.uuid },
+      });
+      logger.info(elasticLog);
       logger.debug(
-        `Client ${ws.uuid} is in a party. Removing client from party.`
+        `Client ${ws.uuid} disconnected. Checking if party needs to be removed.`
       );
-      party.removeClient(ws.uuid);
-    } else {
+      clearInterval(ws.interval);
+      const party = ws.party; // is client in a party?
+      if (party) {
+        // client is in a party
+        logger.debug(
+          `Client ${ws.uuid} is in a party. Removing client from party.`
+        );
+        party.removeClient(ws.uuid);
+      } else {
+        logger.debug(
+          `Apparently client ${ws.clientState.clientName} is not inside a party, so the client doesn't need to be removed..`
+        );
+      }
       logger.debug(
-        `Apparently client ${ws.clientState.clientName} is not inside a party, so the client doesn't need to be removed..`
+        `parties keys is now: ${JSON.stringify(Object.keys(parties))}`
       );
+    } catch (e) {
+      logger.error(`Error when closing WebSocket: ${e}`);
     }
-    logger.debug(
-      `parties keys is now: ${JSON.stringify(Object.keys(parties))}`
-    );
   });
 });
 
