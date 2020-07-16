@@ -5,6 +5,7 @@ services:
     container_name: jelly-party-server
     environment:
       - NODE_ENV=development
+    env_file: staging.env
     ports:
       - "8080:8080" # nodejs websocket server
     volumes:

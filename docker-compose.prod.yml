@@ -3,6 +3,7 @@ services:
   server:
     environment:
       - NODE_ENV=production
+  env_file: staging.env
   filebeat:
     build: ./filebeat
     container_name: filebeat

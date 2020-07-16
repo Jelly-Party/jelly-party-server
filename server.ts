@@ -1,10 +1,10 @@
-const fs = require("fs");
-const https = require("https");
-const WebSocket = require("ws");
-const { uuid } = require("uuidv4");
-const { createLogger, format, transports } = require("winston");
+import * as fs from "fs";
+import * as https from "https";
+import WebSocket from "ws";
+import { uuid } from "uuidv4";
+import { createLogger, format, transports } from "winston";
+import express from "express";
 const { combine, timestamp, label, json } = format;
-const express = require("express");
 
 // Default winston logging levels
 // {
@@ -15,6 +15,30 @@ const express = require("express");
 //   debug: 4,
 //   silly: 5
 // }
+
+interface ClientState {
+  clientName: string;
+  uuid: string;
+}
+
+interface JellyPartyWebSocket extends WebSocket {
+  uuid: string;
+  isAlive: boolean;
+  interval: NodeJS.Timeout;
+  partyId: string;
+  clientState: ClientState;
+  party: Party;
+  ping: (arg0: () => void) => void;
+}
+
+interface ChatMessage {
+  type: string;
+  peer: { uuid: string };
+  data: {
+    type: string;
+    data: { text: string; timestamp: number };
+  };
+}
 
 const logger = createLogger({
   level: "info",
@@ -43,31 +67,20 @@ if (process.env.NODE_ENV === "debug") {
   );
 }
 
-var certPath, keyPath;
 const port = 8080;
 logger.verbose(`Starting server in ${process.env.NODE_ENV} mode.`);
 
-switch (process.env.NODE_ENV) {
-  case "production":
-    certPath = "/etc/letsencrypt/live/ws.jelly-party.com/fullchain.pem";
-    keyPath = "/etc/letsencrypt/live/ws.jelly-party.com/privkey.pem";
-    break;
-  case "development":
-    certPath = "/etc/letsencrypt/live/staging.jelly-party.com/fullchain1.pem";
-    keyPath = "/etc/letsencrypt/live/staging.jelly-party.com/privkey1.pem";
-    break;
-}
-
-logger.verbose(`Using config for ${certPath.match(/\/.+jelly-party.com/)[0]}.`);
+const certPath = process.env.CERT_PATH ?? "empty_certpath";
+const keyPath = process.env.KEY_PATH ?? "empty_certpath";
 
 const server = https.createServer({
   cert: fs.readFileSync(certPath),
   key: fs.readFileSync(keyPath),
 });
-const wss = new WebSocket.Server({ server });
+const wss = new (WebSocket as any).Server({ server });
 
 // Define a dictionary that will hold all parties with references to clients
-var parties = {};
+const parties: Record<string, Party> = {};
 
 // Launch the localhost API that filebeat uses to display live stats.
 // This server is not exposed publically and only accessible from
@@ -77,25 +90,25 @@ api.use(express.json());
 api.use(express.urlencoded({ extended: true }));
 const apiPort = 8081;
 api.get("/parties/:id", (req, res) => {
-  let ans = parties[req.params.id];
+  const ans = parties[req.params.id];
   res.json(ans);
 });
 api.get("/stats", (req, res) => {
   let activeParties = 0;
   let activeClients = 0;
-  for (let [key, party] of Object.entries(parties)) {
+  for (const [key, party] of Object.entries(parties)) {
     activeParties += 1;
     activeClients += party.connections.length;
   }
-  let ans = {
+  const ans = {
     activeParties: activeParties,
     activeClients: activeClients,
   };
   res.json(ans);
 });
 api.post("/parties/:id/chat", (req, res) => {
-  let party = parties[req.params.id];
-  let chatMessage = {
+  const party = parties[req.params.id];
+  const chatMessage: ChatMessage = {
     type: "chatMessage",
     peer: { uuid: "jellyPartySupportBot" },
     data: {
@@ -114,7 +127,7 @@ api.post("/parties/:id/chat", (req, res) => {
   }
 });
 api.post("/broadcast/chat", (req, res) => {
-  let chatMessage = {
+  const chatMessage = {
     type: "chatMessage",
     peer: { uuid: "jellyPartySupportBot" },
     data: {
@@ -122,7 +135,7 @@ api.post("/broadcast/chat", (req, res) => {
       data: { text: req.body.msg, timestamp: Date.now() },
     },
   };
-  for (let [key, party] of Object.entries(parties)) {
+  for (const [key, party] of Object.entries(parties)) {
     party.notifyClients(undefined, chatMessage);
   }
   res.json({ status: "success", body: req.body });
@@ -132,27 +145,24 @@ api.listen(apiPort, "localhost", () =>
 );
 
 class Party {
-  constructor(partyId) {
+  partyId: string;
+  connections: Array<any>;
+  isAlive!: boolean;
+  constructor(partyId: string) {
     this.partyId = partyId;
     this.connections = [];
-    this.update = false;
-    setInterval(() => {
-      if (this.update) {
-        this.broadcastPartyState();
-        this.update = false;
-      }
-    }, 5000);
-    let elasticLog = JSON.stringify({
+    const elasticLog = JSON.stringify({
       type: "partyCreated",
       data: { partyId: this.partyId },
     });
     logger.info(elasticLog);
   }
-  notifyClients(myId, msg) {
+  notifyClients(myId: string | undefined, msg: any) {
+    // myId === undefined => notify everybody
     logger.debug(
       `Notifying other clients about command: ${JSON.stringify(msg)}`
     );
-    var relevantConnections = this.connections.filter((conn) => {
+    const relevantConnections = this.connections.filter((conn) => {
       return conn.uuid !== myId;
     });
     for (const relevantConnection of relevantConnections) {
@@ -160,11 +170,11 @@ class Party {
       relevantConnection.send(JSON.stringify(msg));
     }
   }
-  addClient(newClientWebsocket) {
+  addClient(newClientWebsocket: WebSocket) {
     this.connections.push(newClientWebsocket);
     this.broadcastPartyState();
   }
-  removeClient(clientId) {
+  removeClient(clientId: string) {
     logger.debug(`Removing client with Id ${clientId}.`);
     this.connections = this.connections.filter((conn) => {
       return conn.uuid !== clientId;
@@ -181,30 +191,24 @@ class Party {
     }
   }
   broadcastPartyState() {
-    var partyState = {
+    const partyState = {
       isActive: true,
       partyId: this.partyId,
       peers: this.connections.map((c) => {
         return { ...c.clientState, ...{ uuid: c.uuid } };
       }),
     };
-    var partyStateUpdate = {
+    const partyStateUpdate = {
       type: "partyStateUpdate",
       data: { partyState: partyState },
     };
     // Notify everybody about new party state.
-    this.notifyClients(/* undefined=everybody */ undefined, partyStateUpdate);
+    this.notifyClients(undefined, partyStateUpdate);
   }
 
-  schedulePartyStateUpdate() {
-    // Only send out party state updates a maximum of once every x ms
-    // We do this  to gather party state updates in a bucket, instead of
-    // sending them out immediately.
-    this.update = true;
-  }
   removeParty() {
     // remove reference to this party so that it can be garbage collected
-    let elasticLog = JSON.stringify({
+    const elasticLog = JSON.stringify({
       type: "partyRemoved",
       data: { partyId: this.partyId },
     });
@@ -214,31 +218,33 @@ class Party {
   }
 }
 
-function noop() {}
+function noop() {
+  //
+}
 
-function heartbeat() {
+function heartbeat(this: any) {
   this.isAlive = true;
 }
 
-wss.on("connection", function connection(ws, req) {
+wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
   // Let's generate a unique id for every connection
   logger.debug("New connection opened.");
   ws.uuid = uuid();
   logger.debug(`UUID set: ${ws.uuid}.`);
   ws.isAlive = true;
-  ws.on("pong", heartbeat);
+  ws.addEventListener("pong", heartbeat);
   ws.interval = setInterval(function ping() {
     if (ws.isAlive === false) return ws.close();
     ws.isAlive = false;
     ws.ping(noop);
   }, 30000);
-  ws.on("message", function incoming(message) {
+  ws.addEventListener("message", function incoming(rawMessage) {
     try {
-      logger.debug(`Received: ${JSON.stringify(message)}`);
-      var message = JSON.parse(message);
-      var type = message.type;
+      logger.debug(`Received: ${JSON.stringify(rawMessage)}`);
+      const message = JSON.parse((rawMessage as unknown) as string);
+      const type = message.type;
       switch (type) {
-        case "join":
+        case "join": {
           ws.partyId = message.data.partyId;
           ws.clientState = message.data.clientState;
           // Let the client know about his UUID
@@ -258,7 +264,7 @@ wss.on("connection", function connection(ws, req) {
           if (ws.partyId in parties) {
             // This party exists. Let's join it
             logger.debug("Party already exists, so client can join..");
-            var existingParty = parties[ws.partyId];
+            const existingParty = parties[ws.partyId];
             existingParty.addClient(ws);
             ws.party = existingParty;
             logger.debug(
@@ -271,7 +277,7 @@ wss.on("connection", function connection(ws, req) {
             logger.debug(
               "Party doesn't yet exist, so it'll need to be created.."
             );
-            var newParty = new Party(ws.partyId);
+            const newParty = new Party(ws.partyId);
             newParty.addClient(ws);
             parties[ws.partyId] = newParty;
             ws.party = newParty;
@@ -282,17 +288,19 @@ wss.on("connection", function connection(ws, req) {
             );
           }
           break;
-        case "forward":
+        }
+        case "forward": {
           // We're asked to forward a command to all ppl in a party
-          var party = ws.party;
-          var commandToForward = message.data.commandToForward;
+          const party = ws.party;
+          const commandToForward = message.data.commandToForward;
           // We must add the client who issued the command
           commandToForward.peer = {
             uuid: ws.uuid,
           };
           party.notifyClients(ws.uuid, commandToForward);
           break;
-        case "clientUpdate":
+        }
+        case "clientUpdate": {
           // A client wants to update its state
           // We must ensure that clientName and uuid stay
           // immutable
@@ -302,18 +310,22 @@ wss.on("connection", function connection(ws, req) {
             ...ws.clientState,
             ...message.data.newClientState,
           };
-          ws.party.schedulePartyStateUpdate();
+          ws.party.notifyClients(ws.clientState.uuid, ws.clientState);
           break;
-        default:
+        }
+        default: {
           logger.warn(`Should not be receiving this message: ${message}.`);
+        }
       }
     } catch (e) {
-      logger.error(`Error handling message: ${JSON.stringify(message)}. ${e}.`);
+      logger.error(
+        `Error handling message: ${JSON.stringify(rawMessage)}. ${e}.`
+      );
     }
   });
-  ws.on("close", function close() {
+  ws.addEventListener("close", function close() {
     try {
-      let elasticLog = JSON.stringify({
+      const elasticLog = JSON.stringify({
         type: "disconnect",
         data: { uuid: ws.uuid },
       });
