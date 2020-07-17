@@ -14,8 +14,8 @@
     "@types/ws": "^7.2.6",
     "express": "^4.17.1",
     "ts-node-dev": "^1.0.0-pre.52",
-    "typescript": "^3.9.6",
-    "uuidv4": "^6.1.1",
+    "typescript": "^3.9.7",
+    "uuidv4": "^6.2.0",
     "winston": "^3.3.3",
     "ws": "^7.3.1"
   },

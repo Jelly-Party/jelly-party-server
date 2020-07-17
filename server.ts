@@ -57,11 +57,16 @@ const logger = createLogger({
   ],
 });
 
-if (process.env.NODE_ENV === "debug") {
+if (process.env.NODE_ENV === "development") {
   logger.verbose("Debug log enabled");
   logger.add(
     new transports.File({
       filename: "/var/log/serverlog/debug.log",
+      level: "debug",
+    })
+  );
+  logger.add(
+    new transports.Console({
       level: "debug",
     })
   );
@@ -141,7 +146,7 @@ api.post("/broadcast/chat", (req, res) => {
   res.json({ status: "success", body: req.body });
 });
 api.listen(apiPort, "localhost", () =>
-  console.log(`API listening at http://localhost:${apiPort}`)
+  logger.info(`API listening at http://localhost:${apiPort}`)
 );
 
 class Party {
@@ -232,35 +237,38 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
   ws.uuid = uuid();
   logger.debug(`UUID set: ${ws.uuid}.`);
   ws.isAlive = true;
-  ws.addEventListener("pong", heartbeat);
+  ws.on("pong", heartbeat);
   ws.interval = setInterval(function ping() {
     if (ws.isAlive === false) return ws.close();
     ws.isAlive = false;
     ws.ping(noop);
   }, 30000);
-  ws.addEventListener("message", function incoming(rawMessage) {
+  ws.on("message", function (rawMessage: string) {
     try {
-      logger.debug(`Received: ${JSON.stringify(rawMessage)}`);
-      const message = JSON.parse((rawMessage as unknown) as string);
-      const type = message.type;
+      const parsedMessage = JSON.parse(rawMessage);
+      console.log(parsedMessage);
+      const type = parsedMessage.type;
+      const data = parsedMessage.data;
+      logger.debug(
+        `Received command of type ${type} with data:\n ${JSON.stringify(data)}`
+      );
       switch (type) {
         case "join": {
-          ws.partyId = message.data.partyId;
-          ws.clientState = message.data.clientState;
+          ws.partyId = data.partyId;
+          ws.clientState = data.clientState;
           // Let the client know about his UUID
           ws.send(JSON.stringify({ type: "setUUID", data: { uuid: ws.uuid } }));
           logger.debug(
-            `Client ${ws.clientState.clientName} wants to join a party. GUID is ${message.data.guid}.`
+            `Client ${ws.clientState.clientName} wants to join a party. GUID is ${data.guid}.`
           );
           // Let's log the join command and include the client's IP address.
           // The IP address must be anonymized by ElasticSearch and is
           // to be stored only as a rough geo_point, to analyze where traffic
           // originates from. Log files must be flushed on a regular basis.
-          let elasticLog = { ...message };
+          const elasticLog = { ...parsedMessage };
           elasticLog.data.clientIp = req.socket.remoteAddress;
           elasticLog.data.uuid = ws.uuid;
-          elasticLog = JSON.stringify(elasticLog);
-          logger.info(elasticLog);
+          logger.info(JSON.stringify(elasticLog));
           if (ws.partyId in parties) {
             // This party exists. Let's join it
             logger.debug("Party already exists, so client can join..");
@@ -268,8 +276,8 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
             existingParty.addClient(ws);
             ws.party = existingParty;
             logger.debug(
-              `Client added to party. Clients in party: ${existingParty.connections.map(
-                (c) => c.clientName
+              `Client added to party. Clients in party: ${JSON.stringify(
+                existingParty.connections.map((c) => c.uuid)
               )}.`
             );
           } else {
@@ -292,7 +300,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
         case "forward": {
           // We're asked to forward a command to all ppl in a party
           const party = ws.party;
-          const commandToForward = message.data.commandToForward;
+          const commandToForward = data.commandToForward;
           // We must add the client who issued the command
           commandToForward.peer = {
             uuid: ws.uuid,
@@ -304,26 +312,27 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
           // A client wants to update its state
           // We must ensure that clientName and uuid stay
           // immutable
-          delete message.data.newClientState["clientName"];
-          delete message.data.newClientState["uuid"];
+          delete data.newClientState["clientName"];
+          delete data.newClientState["uuid"];
           ws.clientState = {
             ...ws.clientState,
-            ...message.data.newClientState,
+            ...data.newClientState,
           };
           ws.party.notifyClients(ws.clientState.uuid, ws.clientState);
           break;
         }
         default: {
-          logger.warn(`Should not be receiving this message: ${message}.`);
+          logger.warn(
+            `Should not be receiving this message: ${JSON.stringify(data)}.`
+          );
         }
       }
     } catch (e) {
-      logger.error(
-        `Error handling message: ${JSON.stringify(rawMessage)}. ${e}.`
-      );
+      logger.error(`Error handling message: ${rawMessage}`);
+      console.log(e);
     }
   });
-  ws.addEventListener("close", function close() {
+  ws.on("close", function close() {
     try {
       const elasticLog = JSON.stringify({
         type: "disconnect",
