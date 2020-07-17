@@ -246,7 +246,6 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
   ws.on("message", function (rawMessage: string) {
     try {
       const parsedMessage = JSON.parse(rawMessage);
-      console.log(parsedMessage);
       const type = parsedMessage.type;
       const data = parsedMessage.data;
       logger.debug(
@@ -318,7 +317,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
             ...ws.clientState,
             ...data.newClientState,
           };
-          ws.party.notifyClients(ws.clientState.uuid, ws.clientState);
+          ws.party.broadcastPartyState();
           break;
         }
         default: {
