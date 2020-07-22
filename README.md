@@ -12,7 +12,7 @@ Clone the repo and get the certificates for your server (e.g. using [certbot](ht
 CERT_PATH=/etc/letsencrypt/live/...
 KEY_PATH=/etc/letsencrypt/live/...
 ```
-Start the server using `sudo ./start.sh`.
+Start the server using `sudo ./stage.sh`.
 
 # Run the server in production mode
 This enables logging to [ELK](https://www.elastic.co/de/what-is/elk-stack). You must have an active ELK logging server and create a `beat.env` file:
