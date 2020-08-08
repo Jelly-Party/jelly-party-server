@@ -34,10 +34,7 @@ interface JellyPartyWebSocket extends WebSocket {
 interface ChatMessage {
   type: string;
   peer: { uuid: string };
-  data: {
-    type: string;
-    data: { text: string; timestamp: number };
-  };
+  data: { text: string; timestamp: number };
 }
 
 const logger = createLogger({
@@ -115,11 +112,8 @@ api.post("/parties/:id/chat", (req, res) => {
   const party = parties[req.params.id];
   const chatMessage: ChatMessage = {
     type: "chatMessage",
-    peer: { uuid: "jellyPartySupportBot" },
-    data: {
-      type: "system",
-      data: { text: req.body.msg, timestamp: Date.now() },
-    },
+    peer: { uuid: "jellyPartyLogMessage" },
+    data: { text: req.body.msg, timestamp: Date.now() },
   };
   if (!party) {
     res.json({
