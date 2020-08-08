@@ -130,8 +130,8 @@ api.post("/broadcast/chat", (req, res) => {
     type: "chatMessage",
     peer: { uuid: "jellyPartySupportBot" },
     data: {
-      type: "system",
-      data: { text: req.body.msg, timestamp: Date.now() },
+      text: req.body.msg,
+      timestamp: Date.now(),
     },
   };
   for (const [key, party] of Object.entries(parties)) {
