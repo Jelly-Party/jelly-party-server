@@ -3,12 +3,11 @@ services:
   server:
     environment:
       - NODE_ENV=production
-  env_file: staging.env
+    env_file: prod.env
   filebeat:
     build: ./filebeat
     container_name: filebeat
-    env_file:
-      - beat.env
+    env_file: beat.env
     volumes:
       - type: volume
         source: log_volume
@@ -28,8 +27,7 @@ services:
   metricbeat:
     build: ./metricbeat
     container_name: metricbeat
-    env_file:
-      - beat.env
+    env_file: beat.env
     volumes:
       - type: volume
         source: log_volume
