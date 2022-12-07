@@ -1,15 +1,15 @@
 providers:
   docker:
     watch: true
-    exposedByDefault: true
+    exposedByDefault: false
 entryPoints:
   web:
     http:
       redirections:
         entryPoint:
-          to: websecure
+          to: wssecure
           scheme: https
-  websecure:
+  wssecure:
     address: :8080
 certificatesResolvers:
   leresolver:

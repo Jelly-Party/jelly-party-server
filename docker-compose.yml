@@ -14,7 +14,7 @@ services:
     restart: unless-stopped
     labels:
       - traefik.enable=true
-      - traefik.http.routers.jelly-router.entrypoints=websecure
+      - traefik.http.routers.jelly-router.entrypoints=wssecure
       - traefik.http.routers.jelly-router.rule=Host(`wss.jelly-party.com`)
       - traefik.http.routers.jelly-router.tls=true
       - traefik.http.routers.jelly-router.tls.certresolver=leresolver
