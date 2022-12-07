@@ -1,20 +1,6 @@
-import * as fs from "fs";
-import * as https from "https";
-import WebSocket from "ws";
-import { uuid } from "uuidv4";
-import { createLogger, format, transports } from "winston";
-import express from "express";
-const { combine, timestamp, label, json } = format;
-
-// Default winston logging levels
-// {
-//   error: 0,
-//   warn: 1,
-//   info: 2,
-//   verbose: 3,
-//   debug: 4,
-//   silly: 5
-// }
+import { uuid } from "https://esm.sh/uuidv4@6.2.13";
+import { opine, OpineRequest } from "https://deno.land/x/opine@2.2.0/mod.ts";
+import * as log from "https://deno.land/std@0.150.0/log/mod.ts";
 
 interface ClientState {
   clientName: string;
@@ -24,7 +10,7 @@ interface ClientState {
 interface JellyPartyWebSocket extends WebSocket {
   uuid: string;
   isAlive: boolean;
-  interval: NodeJS.Timeout;
+  interval: number;
   partyId: string;
   clientState: ClientState;
   party: Party;
@@ -37,49 +23,58 @@ interface ChatMessage {
   data: { text: string; timestamp: number };
 }
 
-const logger = createLogger({
-  level: "info",
-  format: combine(label({ label: "ws.jelly-party.com" }), timestamp(), json()),
-  transports: [
-    new transports.File({
-      // maximum level logged is error
-      filename: "/var/log/serverlog/error.log",
-      level: "error",
+await log.setup({
+  handlers: {
+    console: new log.handlers.ConsoleHandler("DEBUG"),
+
+    file: new log.handlers.FileHandler("WARNING", {
+      filename: "./log.txt",
+      // you can change format of output message using any keys in `LogRecord`.
+      formatter: "{levelName} {msg}",
     }),
-    new transports.File({
-      // maximum level logged is info
-      filename: "/var/log/serverlog/elastic.json",
-      level: "info",
-    }),
-  ],
+  },
+
+  loggers: {
+    // configure default logger available via short-hand methods above.
+    default: {
+      level: "DEBUG",
+      handlers: ["console", "file"],
+    },
+
+    tasks: {
+      level: "ERROR",
+      handlers: ["console"],
+    },
+  },
 });
 
-if (process.env.NODE_ENV === "development") {
-  logger.verbose("Debug log enabled");
-  logger.add(
-    new transports.File({
-      filename: "/var/log/serverlog/debug.log",
-      level: "debug",
-    })
-  );
-  logger.add(
-    new transports.Console({
-      level: "debug",
-    })
-  );
-}
+const logger = log.getLogger();
+
+// const logger = new Logger({
+//   level: "info",
+//   format: combine(label({ label: "ws.jelly-party.com" }), timestamp(), json()),
+//   transports: [
+//     new transports.File({
+//       filename: "/var/log/serverlog/error.log",
+//     }),
+//     new transports.File({
+//       filename: "/var/log/serverlog/elastic.json",
+//     }),
+//   ],
+// });
+
+// if (Deno.env.get("MODE") === "development") {
+//   logger.verbose("Debug log enabled");
+//   logger.add(
+//     new transports.File({
+//       filename: "/var/log/serverlog/debug.log",
+//     })
+//   );
+//   logger.add(new transports.Console({}));
+// }
 
 const port = 8080;
-logger.verbose(`Starting server in ${process.env.NODE_ENV} mode.`);
-
-const certPath = process.env.CERT_PATH ?? "empty_certpath";
-const keyPath = process.env.KEY_PATH ?? "empty_certpath";
-
-const server = https.createServer({
-  cert: fs.readFileSync(certPath),
-  key: fs.readFileSync(keyPath),
-});
-const wss = new (WebSocket as any).Server({ server });
+logger.info(`Starting server in ${Deno.env.get("MODE")} mode.`);
 
 // Define a dictionary that will hold all parties with references to clients
 const parties: Record<string, Party> = {};
@@ -87,15 +82,14 @@ const parties: Record<string, Party> = {};
 // Launch the localhost API that filebeat uses to display live stats.
 // This server is not exposed publically and only accessible from
 // localhost
-const api = express();
-api.use(express.json());
-api.use(express.urlencoded({ extended: true }));
+const internalAPI = opine();
 const apiPort = 8081;
-api.get("/parties/:id", (req, res) => {
+
+internalAPI.get("/parties/:id", (req, res) => {
   const ans = parties[req.params.id];
   res.json(ans);
 });
-api.get("/stats", (req, res) => {
+internalAPI.get("/stats", (req, res) => {
   let activeParties = 0;
   let activeClients = 0;
   for (const [key, party] of Object.entries(parties)) {
@@ -108,7 +102,7 @@ api.get("/stats", (req, res) => {
   };
   res.json(ans);
 });
-api.post("/parties/:id/chat", (req, res) => {
+internalAPI.post("/parties/:id/chat", (req, res) => {
   const party = parties[req.params.id];
   const chatMessage: ChatMessage = {
     type: "chatMessage",
@@ -125,7 +119,7 @@ api.post("/parties/:id/chat", (req, res) => {
     res.json({ status: "success" });
   }
 });
-api.post("/broadcast/chat", (req, res) => {
+internalAPI.post("/broadcast/chat", (req, res) => {
   const chatMessage = {
     type: "chatMessage",
     peer: { uuid: "jellyPartySupportBot" },
@@ -139,13 +133,20 @@ api.post("/broadcast/chat", (req, res) => {
   }
   res.json({ status: "success", body: req.body });
 });
-api.listen(apiPort, "127.0.0.1", () =>
-  logger.info(`API listening at http://localhost:${apiPort}`)
-);
+
+const app = opine();
+
+app.get("/", async (req, res, next) => {
+  if (req.headers.get("upgrade") === "websocket") {
+    const sock = req.upgrade();
+    await handleWs(sock as JellyPartyWebSocket, req);
+  }
+  next();
+});
 
 class Party {
   partyId: string;
-  connections: Array<any>;
+  connections: Array<WebSocket & any>;
   isAlive!: boolean;
   constructor(partyId: string) {
     this.partyId = partyId;
@@ -212,7 +213,7 @@ class Party {
       data: { partyId: this.partyId },
     });
     logger.info(elasticLog);
-    logger.verbose(`Removing party: ${this.partyId}`);
+    logger.debug(`Removing party: ${this.partyId}`);
     delete parties[this.partyId];
   }
 }
@@ -225,19 +226,19 @@ function heartbeat(this: any) {
   this.isAlive = true;
 }
 
-wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
+function handleWs(ws: JellyPartyWebSocket, req: OpineRequest) {
   // Let's generate a unique id for every connection
   logger.debug("New connection opened.");
   ws.uuid = uuid();
   logger.debug(`UUID set: ${ws.uuid}.`);
   ws.isAlive = true;
-  ws.on("pong", heartbeat);
+  ws.addEventListener("pong", heartbeat);
   ws.interval = setInterval(function ping() {
     if (ws.isAlive === false) return ws.close();
     ws.isAlive = false;
     ws.ping(noop);
   }, 30000);
-  ws.on("message", function (rawMessage: string) {
+  ws.addEventListener("message", function (rawMessage: any) {
     try {
       const parsedMessage = JSON.parse(rawMessage);
       const type = parsedMessage.type;
@@ -259,7 +260,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
           // to be stored only as a rough geo_point, to analyze where traffic
           // originates from. Log files must be flushed on a regular basis.
           const elasticLog = { ...parsedMessage };
-          elasticLog.data.clientIp = req.socket.remoteAddress;
+          elasticLog.data.clientIp = req.ip;
           elasticLog.data.uuid = ws.uuid;
           logger.info(JSON.stringify(elasticLog));
           if (ws.partyId in parties) {
@@ -315,7 +316,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
           break;
         }
         default: {
-          logger.warn(
+          logger.warning(
             `Should not be receiving this message: ${JSON.stringify(data)}.`
           );
         }
@@ -325,7 +326,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
       console.log(e);
     }
   });
-  ws.on("close", function close() {
+  ws.addEventListener("close", function close() {
     try {
       const elasticLog = JSON.stringify({
         type: "disconnect",
@@ -355,7 +356,9 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
       logger.error(`Error when closing WebSocket: ${e}`);
     }
   });
-});
+}
 
-server.listen(port);
+app.listen(port);
+internalAPI.listen(apiPort);
 logger.info(`Server listening at port ${port}.`);
+logger.info(`Internal API listening at port ${apiPort}.`);

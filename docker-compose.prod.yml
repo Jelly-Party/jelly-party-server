@@ -2,8 +2,7 @@ version: "3.7"
 services:
   server:
     environment:
-      - NODE_ENV=production
-    env_file: prod.env
+      - MODE=production
   filebeat:
     build: ./filebeat
     container_name: filebeat
@@ -24,35 +23,3 @@ services:
         "-environment",
         "container",
       ]
-  metricbeat:
-    build: ./metricbeat
-    container_name: metricbeat
-    env_file: beat.env
-    volumes:
-      - type: volume
-        source: log_volume
-        target: /log_volume
-      - type: bind
-        source: /var/run/docker.sock
-        target: /var/run/docker.sock
-      - type: bind
-        source: /proc
-        target: /hostfs/proc
-        read_only: true
-      - type: bind
-        source: /sys/fs/cgroup
-        target: /hostfs/sys/fs/cgroup
-        read_only: true
-      - type: bind
-        source: /
-        target: /hostfs
-        read_only: true
-    network_mode: "host"
-    environment:
-      system.hostfs: /hostfs
-    user: root
-    cap_add:
-      - sys_ptrace
-      - dac_read_search
-    depends_on:
-      - server

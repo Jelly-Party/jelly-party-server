@@ -4,18 +4,31 @@ services:
     build: .
     container_name: jelly-party-server
     environment:
-      - NODE_ENV=development
-    env_file: staging.env
+      - MODE=development
     ports:
       - "8080:8080" # nodejs websocket server
     volumes:
-      - type: bind # certificate renewal doesn't require rebuilding the image
-        source: /etc/letsencrypt
-        target: /etc/letsencrypt
       - type: volume
         source: log_volume
         target: /var/log/serverlog
     restart: unless-stopped
-    network_mode: "host"
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.jelly-router.entrypoints=websecure
+      - traefik.http.routers.jelly-router.rule=Host(`wss.jelly-party.com`)
+      - traefik.http.routers.jelly-router.tls=true
+      - traefik.http.routers.jelly-router.tls.certresolver=leresolver
+  traefik:
+    image: traefik:v2.8.1
+    ports:
+      - 80:80
+      - 443:443
+      - 8080:8080
+    restart: always
+    depends_on:
+      - server
+    volumes:
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
 volumes:
   log_volume:

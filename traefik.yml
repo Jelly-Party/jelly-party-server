@@ -1,0 +1,20 @@
+providers:
+  docker:
+    watch: true
+    exposedByDefault: true
+entryPoints:
+  web:
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+  websecure:
+    address: :8080
+certificatesResolvers:
+  leresolver:
+    acme:
+      email: hi@jelly-party.com
+      storage: acme.json
+      httpChallenge:
+        entryPoint: web
