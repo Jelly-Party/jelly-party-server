@@ -1,12 +1,12 @@
 version: "3.7"
 services:
-  server:
+  jelly-server:
     build: .
     container_name: jelly-party-server
     environment:
       - MODE=development
-    ports:
-      - "8080:8080" # nodejs websocket server
+    expose:
+      - 8080
     volumes:
       - type: volume
         source: log_volume
@@ -26,7 +26,7 @@ services:
       - 8080:8080
     restart: always
     depends_on:
-      - server
+      - jelly-server
     volumes:
       - ./traefik.yml:/etc/traefik/traefik.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro

@@ -1,5 +1,5 @@
 FROM denoland/deno
-WORKDIR /usr/src/app
+WORKDIR /app
 
-COPY server.ts ./
-CMD npm run start
+COPY src ./
+CMD deno run --allow-net --allow-read --allow-write --allow-env /app/main.ts

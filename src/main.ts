@@ -28,9 +28,10 @@ await log.setup({
     console: new log.handlers.ConsoleHandler("DEBUG"),
 
     file: new log.handlers.FileHandler("WARNING", {
-      filename: "./log.txt",
+      filename: "/var/log/serverlog/elastic.json",
       // you can change format of output message using any keys in `LogRecord`.
-      formatter: "{levelName} {msg}",
+      // formatter: "{levelName} {msg}",
+      formatter: "{msg}",
     }),
   },
 
@@ -40,38 +41,10 @@ await log.setup({
       level: "DEBUG",
       handlers: ["console", "file"],
     },
-
-    tasks: {
-      level: "ERROR",
-      handlers: ["console"],
-    },
   },
 });
 
 const logger = log.getLogger();
-
-// const logger = new Logger({
-//   level: "info",
-//   format: combine(label({ label: "ws.jelly-party.com" }), timestamp(), json()),
-//   transports: [
-//     new transports.File({
-//       filename: "/var/log/serverlog/error.log",
-//     }),
-//     new transports.File({
-//       filename: "/var/log/serverlog/elastic.json",
-//     }),
-//   ],
-// });
-
-// if (Deno.env.get("MODE") === "development") {
-//   logger.verbose("Debug log enabled");
-//   logger.add(
-//     new transports.File({
-//       filename: "/var/log/serverlog/debug.log",
-//     })
-//   );
-//   logger.add(new transports.Console({}));
-// }
 
 const port = 8080;
 logger.info(`Starting server in ${Deno.env.get("MODE")} mode.`);

@@ -1,6 +1,6 @@
 version: "3.7"
 services:
-  server:
+  jelly-server:
     environment:
       - MODE=production
   filebeat:
@@ -12,12 +12,12 @@ services:
         source: log_volume
         target: /log_volume
     depends_on:
-      - server
+      - jelly-server
     network_mode: "host"
     command:
       [
         "./wait-for-it.sh",
-        "127.0.0.1:8081",
+        "jelly-server:8081",
         "--",
         "filebeat",
         "-environment",
