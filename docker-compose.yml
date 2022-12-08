@@ -17,7 +17,7 @@ services:
       - traefik.http.routers.jelly-router.entrypoints=wssecure
       - traefik.http.routers.jelly-router.rule=Host(`wss.jelly-party.com`)
       - traefik.http.routers.jelly-router.tls=true
-      - traefik.http.routers.jelly-router.tls.certresolver=leresolver
+      - traefik.http.routers.jelly-router.tls.certresolver=myresolver
   traefik:
     image: traefik:v2.9
     restart: always
@@ -33,7 +33,7 @@ services:
       - "--entrypoints.wssecure.address=:8080"
       - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
       - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-      - "--certificatesresolvers.myresolver.acme.email=${LE_MAIL:?err}"
+      - "--certificatesresolvers.myresolver.acme.email=hi@jelly-party.com"
       - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
     ports:
       - "80:80"
