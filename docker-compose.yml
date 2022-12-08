@@ -19,16 +19,28 @@ services:
       - traefik.http.routers.jelly-router.tls=true
       - traefik.http.routers.jelly-router.tls.certresolver=leresolver
   traefik:
-    image: traefik:v2.8.1
-    ports:
-      - 80:80
-      - 443:443
-      - 8080:8080
+    image: traefik:v2.9
     restart: always
     depends_on:
       - jelly-server
+    command:
+      #- "--log.level=DEBUG"
+      # - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+      - "--entrypoints.wssecure.address=:8080"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+      - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+      - "--certificatesresolvers.myresolver.acme.email=${LE_MAIL:?err}"
+      - "--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
-      - ./traefik.yml:/etc/traefik/traefik.yml:ro
-      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - "./letsencrypt:/letsencrypt"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
 volumes:
   log_volume:
