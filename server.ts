@@ -1,5 +1,5 @@
 import * as fs from "fs";
-import * as https from "https";
+import * as http from "http";
 import WebSocket from "ws";
 import { uuid } from "uuidv4";
 import { createLogger, format, transports } from "winston";
@@ -72,13 +72,7 @@ if (process.env.NODE_ENV === "development") {
 const port = 8080;
 logger.verbose(`Starting server in ${process.env.NODE_ENV} mode.`);
 
-const certPath = process.env.CERT_PATH ?? "empty_certpath";
-const keyPath = process.env.KEY_PATH ?? "empty_certpath";
-
-const server = https.createServer({
-  cert: fs.readFileSync(certPath),
-  key: fs.readFileSync(keyPath),
-});
+const server = http.createServer();
 const wss = new (WebSocket as any).Server({ server });
 
 // Define a dictionary that will hold all parties with references to clients
