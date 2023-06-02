@@ -1,4 +1,4 @@
-FROM node:14.5.0-stretch
+FROM node:20.2-slim
 WORKDIR /usr/src/app
 COPY package.json ./
 COPY package-lock.json ./
