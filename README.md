@@ -7,12 +7,8 @@ A dockerized `nodejs` powered websocket server for the browser plugin [Jelly-Par
 - docker-compose
 
 # Run the server in staging mode
-Clone the repo and get the certificates for your server (e.g. using [certbot](https://certbot.eff.org/)). Create a `staging.env` file and fill out `CERT_PATH` and `KEY_PATH`, e.g.:
 ```
-CERT_PATH=/etc/letsencrypt/live/...
-KEY_PATH=/etc/letsencrypt/live/...
-```
-Start the server using `sudo ./stage.sh`.
+Start the server using `docker-compose -f docker-compose.yml up --build`.
 
 # Run the server in production mode
 This enables logging to [ELK](https://www.elastic.co/de/what-is/elk-stack). You must have an active ELK logging server and create a `beat.env` file:
@@ -24,4 +20,4 @@ filebeat_password=""
 metricbeat_username=""
 metricbeat_password="
 ```
-Start the server using `sudo ./prod.sh`.
+Start the server using `docker-compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d`.
