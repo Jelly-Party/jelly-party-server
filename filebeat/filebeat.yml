@@ -19,12 +19,12 @@ filebeat.inputs:
           test:
             - "2019-06-22T16:33:51Z"
             - "2019-11-18T04:59:51.123Z"
-      - dissect:
-          when:
-            has_fields: ["message_decoded.data.clientIp"]
-          tokenizer: "%{ip}"
-          field: "message_decoded.data.clientIp"
-          target_prefix: "client"
+      - rename:
+          fields:
+            - from: "message_decoded.data.clientIp"
+              to: "client.ip"
+          ignore_missing: true
+          fail_on_error: false
       - drop_fields:
           fields: [timestamp]
   - type: httpjson
