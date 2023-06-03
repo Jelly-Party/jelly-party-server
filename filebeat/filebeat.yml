@@ -22,7 +22,7 @@ filebeat.inputs:
       - dissect:
           when:
             has_fields: ["message_decoded.data.clientIp"]
-          tokenizer: "::ffff:%{ip}"
+          tokenizer: "%{ip}"
           field: "message_decoded.data.clientIp"
           target_prefix: "client"
       - drop_fields:
