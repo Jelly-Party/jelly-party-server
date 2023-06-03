@@ -132,8 +132,8 @@ api.post("/broadcast/chat", (req, res) => {
   }
   res.json({ status: "success", body: req.body });
 });
-api.listen(apiPort, "127.0.0.1", () =>
-  logger.info(`API listening at http://localhost:${apiPort}`)
+api.listen(apiPort, "0.0.0.0", () =>
+  logger.info(`API listening at http://0.0.0.0:${apiPort}`)
 );
 
 class Party {
