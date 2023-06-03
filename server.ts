@@ -1,4 +1,3 @@
-import * as fs from "fs";
 import * as http from "http";
 import WebSocket from "ws";
 import { uuid } from "uuidv4";
@@ -316,7 +315,6 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
       }
     } catch (e) {
       logger.error(`Error handling message: ${rawMessage}`);
-      console.log(e);
     }
   });
   ws.on("close", function close() {
