@@ -2,9 +2,9 @@
 	reverse_proxy server:8080
 }
 
-{$OPENSEARCH_DOMAIN} {
-	reverse_proxy opensearch-dashboards:5601
-}
+# {$OPENSEARCH_DOMAIN} {
+# 	reverse_proxy opensearch-dashboards:5601
+# }
 
 http://localhost:8081 {
 	reverse_proxy server:8081
