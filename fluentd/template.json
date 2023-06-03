@@ -1,0 +1,108 @@
+{
+    "template": "jelly_index",
+    "settings": {
+        "number_of_shards": 1
+    },
+    "mappings": {
+        "properties": {
+            "activeParties": {
+                "type": "integer"
+            },
+            "activeClients": {
+                "type": "integer"
+            },
+            "label": {
+                "type": "keyword"
+            },
+            "level": {
+                "type": "keyword"
+            },
+            "message_decoded": {
+                "properties": {
+                    "data": {
+                        "properties": {
+                            "clientIp": {
+                                "type": "ip"
+                            },
+                            "clientState": {
+                                "properties": {
+                                    "clientName": {
+                                        "type": "text"
+                                    },
+                                    "currentlyWatching": {
+                                        "type": "text"
+                                    },
+                                    "favicon": {
+                                        "type": "keyword"
+                                    },
+                                    "videoState": {
+                                        "properties": {
+                                            "currentTime": {
+                                                "type": "integer"
+                                            },
+                                            "paused": {
+                                                "type": "boolean"
+                                            }
+                                        }
+                                    },
+                                    "avatarState": {
+                                        "properties": {
+                                            "accessoriesType": {
+                                                "type": "keyword"
+                                            },
+                                            "clotheColor": {
+                                                "type": "keyword"
+                                            },
+                                            "clotheType": {
+                                                "type": "keyword"
+                                            },
+                                            "eyeType": {
+                                                "type": "keyword"
+                                            },
+                                            "eyebrowType": {
+                                                "type": "keyword"
+                                            },
+                                            "facialHairColor": {
+                                                "type": "keyword"
+                                            },
+                                            "facialHairType": {
+                                                "type": "keyword"
+                                            },
+                                            "graphicType": {
+                                                "type": "keyword"
+                                            },
+                                            "mouthType": {
+                                                "type": "keyword"
+                                            },
+                                            "skinColor": {
+                                                "type": "keyword"
+                                            },
+                                            "topType": {
+                                                "type": "keyword"
+                                            },
+                                            "hairColor": {
+                                                "type": "keyword"
+                                            }
+                                        }
+                                    }
+                                }
+                            },
+                            "guid": {
+                                "type": "keyword"
+                            },
+                            "partyId": {
+                                "type": "keyword"
+                            },
+                            "uuid": {
+                                "type": "keyword"
+                            }
+                        }
+                    },
+                    "type": {
+                        "type": "keyword"
+                    }
+                }
+            }
+        }
+    }
+}
