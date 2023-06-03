@@ -252,8 +252,7 @@ wss.on("connection", function connection(ws: JellyPartyWebSocket, req: any) {
           // to be stored only as a rough geo_point, to analyze where traffic
           // originates from. Log files must be flushed on a regular basis.
           const elasticLog = { ...parsedMessage };
-          elasticLog.data.clientIp =
-            req.headers["x-forwarded-for"] || req.socket.remoteAddress;
+          elasticLog.data.clientIp = req.headers?.["x-forwarded-for"];
           elasticLog.data.uuid = ws.uuid;
           logger.info(JSON.stringify(elasticLog));
           if (ws.partyId in parties) {
