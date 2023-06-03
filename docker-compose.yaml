@@ -1,0 +1,36 @@
+version: "3.7"
+services:
+  server:
+    build: .
+    container_name: jelly-party-server
+    environment:
+      - NODE_ENV=development
+    volumes:
+      - type: volume
+        source: log_volume
+        target: /var/log/serverlog
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+      - "8080:8080"
+      - "127.0.0.1:8081:8081"
+    depends_on:
+      - server
+    environment:
+      - WS_DOMAIN=ws.jelly-party.com
+      - OPENSEARCH_DOMAIN=opensearch.jelly-party.com
+
+volumes:
+  log_volume:
+  caddy_data:
+  caddy_config:

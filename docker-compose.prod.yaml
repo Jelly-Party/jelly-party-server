@@ -1,0 +1,106 @@
+version: "3.7"
+services:
+  server:
+    environment:
+      - NODE_ENV=production
+  filebeat:
+    build: ./filebeat
+    container_name: filebeat
+    env_file: beat.env
+    volumes:
+      - type: volume
+        source: log_volume
+        target: /log_volume
+    depends_on:
+      - server
+    network_mode: "host"
+    command:
+      [
+        "./wait-for-it.sh",
+        "127.0.0.1:8081",
+        "--",
+        "filebeat",
+        "-environment",
+        "container",
+      ]
+  metricbeat:
+    build: ./metricbeat
+    container_name: metricbeat
+    env_file: beat.env
+    volumes:
+      - type: volume
+        source: log_volume
+        target: /log_volume
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+      - type: bind
+        source: /proc
+        target: /hostfs/proc
+        read_only: true
+      - type: bind
+        source: /sys/fs/cgroup
+        target: /hostfs/sys/fs/cgroup
+        read_only: true
+      - type: bind
+        source: /
+        target: /hostfs
+        read_only: true
+    network_mode: "host"
+    environment:
+      system.hostfs: /hostfs
+    user: root
+    cap_add:
+      - sys_ptrace
+      - dac_read_search
+    depends_on:
+      - server
+#   fluentd:
+#     build: ./fluentd
+#     container_name: fluentd
+#     volumes:
+#       - ./fluentd/fluent.conf:/fluentd/etc/fluent.conf
+#       - ./fluentd/template.json:/fluentd/etc/template.json
+#       - type: volume
+#         source: log_volume
+#         target: /log_volume
+#     depends_on:
+#       - server
+#       - opensearch-node1
+#   opensearch-node1: # This is also the hostname of the container within the Docker network (i.e. https://opensearch-node1/)
+#     image: opensearchproject/opensearch:latest
+#     container_name: opensearch-node1
+#     environment:
+#       - cluster.name=opensearch-cluster # Name the cluster
+#       - node.name=opensearch-node1 # Name the node that will run in this container
+#       # - discovery.seed_hosts=opensearch-node1 # Nodes to look for when discovering the cluster
+#       - cluster.initial_cluster_manager_nodes=opensearch-node1 # Nodes eligibile to serve as cluster manager
+#       - bootstrap.memory_lock=true # Disable JVM heap memory swapping
+#       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m" # Set min and max JVM heap sizes to at least 50% of system RAM
+#       # - plugins.security.disabled="true"
+#       - plugins.security.ssl.http.enabled=false
+#     ulimits:
+#       memlock:
+#         soft: -1 # Set memlock to unlimited (no soft or hard limit)
+#         hard: -1
+#       nofile:
+#         soft: 65536 # Maximum number of open files for the opensearch user - set to at least 65536
+#         hard: 65536
+#     volumes:
+#       - opensearch-data1:/usr/share/opensearch/data # Creates volume called opensearch-data1 and mounts it to the container
+#     # ports:
+#     #   - 9200:9200 # REST API
+#     #   - 9600:9600 # Performance Analyzer
+
+#   opensearch-dashboards:
+#     image: opensearchproject/opensearch-dashboards:latest # Make sure the version of opensearch-dashboards matches the version of opensearch installed on other nodes
+#     container_name: opensearch-dashboards
+#     # ports:
+#     #   - 5601:5601 # Map host port 5601 to container port 5601
+#     expose:
+#       - "5601" # Expose port 5601 for web access to OpenSearch Dashboards
+#     environment:
+#       OPENSEARCH_HOSTS: '["http://opensearch-node1:9200"]' # Define the OpenSearch nodes that OpenSearch Dashboards will query
+#       plugins.security.ssl.http.enabled: false
+# volumes:
+#   opensearch-data1:

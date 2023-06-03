@@ -1,0 +1,5 @@
+services:
+  caddy:
+    environment:
+      - WS_DOMAIN=ws.jelly-party.localhost
+      - OPENSEARCH_DOMAIN=opensearch.jelly-party.localhost
