@@ -1,7 +1,7 @@
 version: "3.7"
 services:
   server:
-    container_name: jelly-party-server
+    container_name: server
     environment:
       - NODE_ENV=production
   filebeat:
