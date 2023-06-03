@@ -29,7 +29,7 @@ filebeat.inputs:
           fields: [timestamp]
   - type: httpjson
     tags: ["json"]
-    url: http://127.0.0.1:8081/stats
+    url: http://server:8081/stats
     http_method: GET
     interval: 60s
     processors:
